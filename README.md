@@ -109,3 +109,4 @@ real, no está asociada a ninguna cuenta de AWS, y su único propósito es que
 coincida con el patrón que Bandit/Gitleaks buscan. Si GitHub marca una alerta
 de secret scanning sobre este repo, es exactamente el comportamiento
 esperado (y parte de la evidencia de la auditoría).
+
