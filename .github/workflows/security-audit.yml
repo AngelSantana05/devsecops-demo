@@ -24,21 +24,29 @@ jobs:
       - name: Crear carpeta de evidencias
         run: mkdir -p reports
 
-      - name: "SAST - Bandit (reporte completo, no bloqueante)"
+      - name: "SAST - Bandit (reporte completo, evidencia)"
         run: bandit -r app-ejemplo scripts -f json -o reports/bandit-report.json || true
 
       - name: "SAST - Bandit (quality gate, solo severidad alta)"
+        id: bandit_gate
+        continue-on-error: true
         run: bandit -r app-ejemplo scripts -lll
 
       - name: "SCA - pip-audit"
+        id: pip_audit
+        continue-on-error: true
         run: pip-audit -r requirements.txt -f json -o reports/pip-audit-report.json
 
       - name: "Secret scanning - Gitleaks (historial completo)"
+        id: gitleaks
+        continue-on-error: true
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Quality gate - gatekeeper.py"
+      - name: "Quality gate - gatekeeper.py (secretos en working tree + politica de bucket)"
+        id: gatekeeper
+        continue-on-error: true
         run: python3 scripts/gatekeeper.py --ci
 
       - name: Subir reportes como artefacto
@@ -47,3 +55,18 @@ jobs:
         with:
           name: security-reports
           path: reports/
+
+      - name: "Evaluar quality gate consolidado"
+        run: |
+          echo "Bandit (alta severidad): ${{ steps.bandit_gate.outcome }}"
+          echo "pip-audit:               ${{ steps.pip_audit.outcome }}"
+          echo "Gitleaks (historial):     ${{ steps.gitleaks.outcome }}"
+          echo "gatekeeper.py:            ${{ steps.gatekeeper.outcome }}"
+          if [ "${{ steps.bandit_gate.outcome }}" != "success" ] || \
+             [ "${{ steps.pip_audit.outcome }}" != "success" ] || \
+             [ "${{ steps.gitleaks.outcome }}" != "success" ] || \
+             [ "${{ steps.gatekeeper.outcome }}" != "success" ]; then
+            echo "::error::Quality gate FALLIDO -- ver el detalle de cada paso arriba. Se bloquea el merge/deploy."
+            exit 1
+          fi
+          echo "Quality gate OK -- las 4 verificaciones pasaron."
