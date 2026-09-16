@@ -110,3 +110,4 @@ coincida con el patrón que Bandit/Gitleaks buscan. Si GitHub marca una alerta
 de secret scanning sobre este repo, es exactamente el comportamiento
 esperado (y parte de la evidencia de la auditoría).
 test trigger
+Actions habilitado, run de verificacion.
