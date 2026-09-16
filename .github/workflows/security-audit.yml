@@ -1,0 +1,49 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [dev, production]
+  pull_request:
+    branches: [production]
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar herramientas de auditoria
+        run: pip install -r requirements-audit.txt
+
+      - name: Crear carpeta de evidencias
+        run: mkdir -p reports
+
+      - name: "SAST - Bandit (reporte completo, no bloqueante)"
+        run: bandit -r app-ejemplo scripts -f json -o reports/bandit-report.json || true
+
+      - name: "SAST - Bandit (quality gate, solo severidad alta)"
+        run: bandit -r app-ejemplo scripts -lll
+
+      - name: "SCA - pip-audit"
+        run: pip-audit -r requirements.txt -f json -o reports/pip-audit-report.json
+
+      - name: "Secret scanning - Gitleaks (historial completo)"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Quality gate - gatekeeper.py"
+        run: python3 scripts/gatekeeper.py --ci
+
+      - name: Subir reportes como artefacto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: reports/
