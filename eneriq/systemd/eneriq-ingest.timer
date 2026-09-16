@@ -1,0 +1,10 @@
+[Unit]
+Description=EnerIQ - ingesta cada 5 min
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=eneriq-ingest.service
+
+[Install]
+WantedBy=timers.target
