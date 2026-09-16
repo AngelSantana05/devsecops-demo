@@ -11,6 +11,12 @@ Proyecto final — materia *Herramientas de tecnologías de la información*,
 Tecmilenio. El plan de auditoría completo y el informe con los hallazgos
 reales están en [`REPORTE_FINAL.md`](REPORTE_FINAL.md).
 
+**Este repo también hospeda [`eneriq/`](eneriq/)**, la aplicación real del
+proyecto EnerIQ (orquestador de energía/automatización doméstica sobre Home
+Assistant) — la metodología de auditoría de arriba (Bandit/pip-audit/
+Gitleaks/CI) se aplica también a ese código. Ver la sección
+["EnerIQ"](#eneriq) más abajo.
+
 ## Estructura
 
 ```
@@ -110,3 +116,71 @@ coincida con el patrón que Bandit/Gitleaks buscan. Si GitHub marca una alerta
 de secret scanning sobre este repo, es exactamente el comportamiento
 esperado (y parte de la evidencia de la auditoría).
 
+## EnerIQ
+
+Orquestador de energía y automatización doméstica: cruza tarifa eléctrica
+(CFE DAC, modelada localmente), clima ([Open-Meteo](https://open-meteo.com/))
+e historial de consumo para decidir cuándo encender/esperar el aire
+acondicionado, detectar anomalías de consumo, priorizar qué apagar si se
+acerca el presupuesto mensual, y generar un plan del día siguiente. Corre de
+verdad, en producción, en el homelab del autor -- no es solo un mockup.
+
+### Arquitectura desplegada
+
+- **Backend:** Python (`eneriq/`), FastAPI (`main.py`, solo `127.0.0.1:8091`,
+  no expuesto a la LAN) + 3 jobs por systemd timer:
+  `ingest.py` (telemetría, cada 5 min) · `decide.py` (motor de decisión AC +
+  anomalías, cada 15 min) · `schedule_daily.py` (plan del día siguiente,
+  04:30 AM). Ver `eneriq/systemd/`.
+- **Base de datos:** PostgreSQL 17 + TimescaleDB (hypertable `telemetry`).
+- **Salida hacia Home Assistant:** sensores "push" vía la API REST de HA
+  (`sensor.eneriq_decision_ac`, `sensor.eneriq_anomalias`,
+  `sensor.eneriq_bitacora`, `sensor.eneriq_plan_manana`) + panel en el
+  dashboard de HA (sección "EnerIQ", 4 tarjetas con pop-up de detalle).
+- **Control real del AC:** ya existe una automatización IR real en HA
+  (`remote.papu_aire_v`, scripts `encender_aire`/`apagar_aire`) -- el motor
+  de decisión llama esos scripts, pero **`auto_control_enabled` arranca en
+  `false`** en la tabla `devices`: por defecto solo registra/alerta, nunca
+  prende el AC solo. Se activa manualmente cuando se confirme el
+  comportamiento: `UPDATE devices SET auto_control_enabled = true WHERE id = 'ac';`
+
+### Sobre el enchufe inteligente pendiente
+
+La telemetría de consumo/temperatura interior es **simulada pero
+etiquetada como tal** (`fuente = 'simulada'` en la base de datos) mientras
+no exista un sensor real. En cuanto se conecte el enchufe:
+
+```sql
+UPDATE devices SET ha_entity_id = 'sensor.<tu_enchufe>_power' WHERE id = 'ac';
+```
+
+No hace falta tocar ningún código -- `telemetry_source.py` ya intenta leer
+de ese `ha_entity_id` primero y solo cae a simulación si no existe o no
+responde.
+
+### Motor de decisiones (lógica propia, con pruebas)
+
+`eneriq/decision_engine/` -- 4 módulos, 12 pruebas con pytest
+(`eneriq/tests/`), sin dependencias externas:
+
+- `ac_decision.py` -- ¿encender el AC ahora o esperar a tarifa base?
+- `anomaly_detection.py` -- ¿el consumo actual es anómalo vs. su histórico?
+- `load_priority.py` -- ¿qué apagar primero si se excede el presupuesto?
+- `scheduler.py` -- plan de 24h cruzando pronóstico de clima + tarifa.
+
+### Cómo correrlo / reproducirlo
+
+```bash
+cd eneriq
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt pytest
+python3 -m pytest tests/ -v          # el motor de decision no necesita BD
+
+cp .env.example .env                  # llenar credenciales de Postgres + token de HA
+psql -d eneriq -f schema.sql          # requiere Postgres con extension timescaledb
+
+python3 ingest.py                     # una corrida manual de cada job
+python3 decide.py
+python3 schedule_daily.py
+uvicorn main:app --reload --port 8091 # API de solo lectura, para inspeccionar
+```

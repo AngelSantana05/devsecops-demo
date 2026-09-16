@@ -1,0 +1,8 @@
+[Unit]
+Description=EnerIQ - scheduling predictivo del dia siguiente
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/eneriq-app
+ExecStart=/root/eneriq-app/.venv/bin/python3 /root/eneriq-app/schedule_daily.py
