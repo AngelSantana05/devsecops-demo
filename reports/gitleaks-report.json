@@ -1,0 +1,22 @@
+[
+ {
+  "Description": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms.",
+  "StartLine": 3,
+  "EndLine": 3,
+  "StartColumn": 20,
+  "EndColumn": 40,
+  "Match": "AKIAXAJI0Y6DPBHSAHXT\"",
+  "Secret": "AKIAXAJI0Y6DPBHSAHXT",
+  "File": "app-ejemplo/config_malo.py",
+  "SymlinkFile": "",
+  "Commit": "1b8bad61ecb7f7b1a7844266bbf74a235faf3d09",
+  "Entropy": 3.621928,
+  "Author": "Angel Vicente Santana Loera",
+  "Email": "angelvicentesl05@gmail.com",
+  "Date": "2026-09-16T04:07:37Z",
+  "Message": "feat: estructura inicial de app-ejemplo (LocalStack S3) + scripts de auditoria\n\n- app-ejemplo/: gestion de bucket S3 simulado via LocalStack (boto3)\n- scripts/scan_secrets.py + scripts/gatekeeper.py: puerta de control previa\n  a merge dev-\u003eproduction (regex de secretos + politica de bucket)\n- infra/: politicas de bucket S3 (caso publico malo + caso privado bueno)\n- .github/workflows/security-audit.yml: pipeline de CI con Bandit/pip-audit/Gitleaks",
+  "Tags": [],
+  "RuleID": "aws-access-token",
+  "Fingerprint": "1b8bad61ecb7f7b1a7844266bbf74a235faf3d09:app-ejemplo/config_malo.py:aws-access-token:3"
+ }
+]
