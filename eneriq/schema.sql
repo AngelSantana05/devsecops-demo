@@ -54,6 +54,20 @@ CREATE TABLE IF NOT EXISTS schedules (
     UNIQUE (fecha, device_id, hora)
 );
 
+CREATE TABLE IF NOT EXISTS goal_plans (
+    id                   BIGSERIAL PRIMARY KEY,
+    creado_en            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    meta_gasto_mxn       NUMERIC(10,2) NOT NULL,
+    uso_actual_mxn       NUMERIC(10,2) NOT NULL,   -- promedio real ultimos 7 dias
+    gasto_proyectado_mxn NUMERIC(10,2) NOT NULL,   -- proyectado para manana siguiendo el plan
+    ahorro_mxn           NUMERIC(10,2) NOT NULL,   -- uso_actual - gasto_proyectado (puede ser negativo)
+    ahorro_pct           NUMERIC(6,2) NOT NULL,
+    cumple_meta          BOOLEAN NOT NULL,
+    plan_texto           TEXT NOT NULL,            -- explicacion del LLM
+    perfil_json          JSONB                     -- consumo_w proyectado por hora (auditoria)
+);
+CREATE INDEX IF NOT EXISTS idx_goal_plans_creado ON goal_plans (creado_en DESC);
+
 -- Dispositivo real: el AC ya se controla hoy via IR (remote.papu_aire_v, scripts
 -- encender_aire/apagar_aire). auto_control_enabled arranca en FALSE a proposito --
 -- el motor de decision corre, registra y publica en HA, pero NO prende/apaga el AC

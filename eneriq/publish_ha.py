@@ -112,6 +112,36 @@ def publicar_plan_llm(plan_texto: str, backend: str, gasto_hoy_mxn: float):
     )
 
 
+def publicar_plan_meta(
+    meta_gasto_mxn: float,
+    uso_actual_mxn: float,
+    gasto_proyectado_mxn: float,
+    ahorro_mxn: float,
+    ahorro_pct: float,
+    cumple_meta: bool,
+    plan_texto: str,
+):
+    _set_state(
+        "sensor.eneriq_plan_meta",
+        "generado",
+        {
+            "friendly_name": "EnerIQ - Plan con meta de gasto",
+            "icon": "mdi:target",
+            "meta_gasto_mxn": meta_gasto_mxn,
+            "uso_actual_mxn": uso_actual_mxn,
+            "gasto_proyectado_mxn": gasto_proyectado_mxn,
+            # clamp a 0 para que la grafica de pastel nunca reciba un
+            # valor negativo; el ahorro real (puede ser negativo si el
+            # plan sale mas caro) queda en ahorro_mxn_real para el texto.
+            "ahorro_mxn": max(ahorro_mxn, 0.0),
+            "ahorro_mxn_real": ahorro_mxn,
+            "ahorro_pct": ahorro_pct,
+            "cumple_meta": cumple_meta,
+            "plan_texto": plan_texto,
+        },
+    )
+
+
 def llamar_servicio(servicio_ha: str):
     """Llama un servicio de HA sin entity_id -- para scripts autocontenidos
     como 'script.encender_aire' (el script ya sabe que remote/device controlar).
