@@ -72,7 +72,9 @@ def publicar_plan_manana(plan: list[dict]):
     )
 
 
-def publicar_consumo_gasto(consumo_kwh_hoy: float, costo_mxn_hoy: float, periodo: str, precio_kwh_actual: float):
+def publicar_consumo_gasto(
+    consumo_kwh_hoy: float, costo_mxn_hoy: float, periodo: str, precio_kwh_actual: float, extra: dict | None = None
+):
     _set_state(
         "sensor.eneriq_consumo_hoy_kwh",
         consumo_kwh_hoy,
@@ -94,6 +96,7 @@ def publicar_consumo_gasto(consumo_kwh_hoy: float, costo_mxn_hoy: float, periodo
             "state_class": "total_increasing",
             "periodo_tarifa_actual": periodo,
             "precio_kwh_actual_mxn": precio_kwh_actual,
+            **(extra or {}),
         },
     )
 
