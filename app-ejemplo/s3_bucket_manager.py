@@ -1,5 +1,6 @@
 """Gestion simulada de un bucket S3 (via LocalStack) para app-ejemplo."""
-import subprocess
+import re
+import tarfile
 
 import boto3
 
@@ -36,9 +37,22 @@ def listar_objetos(bucket=None):
     return [obj["Key"] for obj in resp.get("Contents", [])]
 
 
+# Reglas de nombres de bucket de S3: 3-63 caracteres, minusculas, digitos,
+# puntos y guiones, empezando y terminando en letra o digito.
+NOMBRE_BUCKET_VALIDO = re.compile(r"^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$")
+
+
 def respaldo_local(bucket=None, destino="/tmp/backup"):
-    """Empaqueta el contenido descargado del bucket en un .tar.gz local."""
+    """Empaqueta el contenido descargado del bucket en un .tar.gz local.
+
+    Usa el modulo tarfile en vez de invocar `tar` con shell=True (hallazgo
+    B602 / CWE-78 de la auditoria): el nombre del bucket ya no pasa por un
+    shell, y ademas se valida para que no pueda salirse de /tmp con '../'.
+    """
     bucket = bucket or config.BUCKET_NAME
-    comando = f"tar -czf {destino}.tar.gz -C /tmp/{bucket} ."
-    subprocess.run(comando, shell=True, check=True)
-    return f"{destino}.tar.gz"
+    if not NOMBRE_BUCKET_VALIDO.match(bucket) or ".." in bucket:
+        raise ValueError(f"Nombre de bucket invalido: {bucket!r}")
+    archivo = f"{destino}.tar.gz"
+    with tarfile.open(archivo, "w:gz") as tar:
+        tar.add(f"/tmp/{bucket}", arcname=".")
+    return archivo
