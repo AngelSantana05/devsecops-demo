@@ -251,8 +251,9 @@ hacia `production`.
 
 **Diseño del gate:** cada herramienta corre de forma independiente
 (`continue-on-error: true` por paso) y un paso final ("Evaluar quality gate
-consolidado") revisa el resultado de las 4 verificaciones
-(Bandit-alta-severidad, pip-audit, Gitleaks, `gatekeeper.py`) y falla el
+consolidado") revisa el resultado de las verificaciones (originalmente 4:
+Bandit-alta-severidad, pip-audit, Gitleaks, `gatekeeper.py`; desde que se
+agregó EnerIQ son 6, sumando pip-audit y pruebas de `eneriq/`) y falla el
 job completo si **cualquiera** de ellas falló — esto garantiza que las
 otras herramientas siempre terminen de correr y generen su reporte como
 evidencia, en vez de que un solo hallazgo detenga el job antes de que las
@@ -281,6 +282,34 @@ un fallo individual detenga el job antes de tiempo, **pero el paso final
 "Evaluar quality gate consolidado" muestra ✗ y es el que realmente decide
 el resultado del pipeline** — el detalle impreso en ese paso (arriba)
 confirma cuál de las 4 verificaciones causó el bloqueo.
+
+### Remediación de B602 y pipeline en verde (22 de septiembre de 2026)
+
+Se ejecutó la acción preventiva #3 de la Sección 8.2 (commit `4f67632`):
+`respaldo_local()` ya no arma un comando de shell, usa el módulo `tarfile`
+de la librería estándar, y además valida el nombre del bucket contra las
+reglas de S3 (3-63 caracteres, minúsculas, dígitos, puntos y guiones, sin
+`..`) para que tampoco pueda usarse para salir de `/tmp`. Se probó que el
+respaldo sigue funcionando y que nombres como `x; rm -rf ~`, `demo$(id)` o
+`../../etc` se rechazan.
+
+**Run:** [`#35809485474`](https://github.com/AngelSantana05/devsecops-demo/actions/runs/35809485474)
+— push a `dev`, commit `4f67632`.
+
+```
+Bandit (alta severidad):   success
+pip-audit (app-ejemplo):   success
+pip-audit (eneriq):        success
+Tests EnerIQ:              success
+Gitleaks (historial):      success
+gatekeeper.py:             success
+Quality gate OK
+```
+
+**Resultado:** primera corrida con el quality gate completo en **verde**.
+Queda abierto el hallazgo #3 (B108, ruta temporal predecible, severidad
+media), que no bloquea el gate por diseño (el gate sólo bloquea severidad
+alta) y sigue documentado como deuda menor.
 
 **Nota sobre Gitleaks en CI vs. local:** `gitleaks-action` en un evento
 `push` escanea únicamente los *commits nuevos incluidos en ese push*, no
@@ -365,10 +394,10 @@ cubre el riesgo completo.
 El pipeline de CI (Sección 9) demuestra el principio central de
 shift-left/DevSecOps de forma verificable, no solo declarada: existe una
 corrida real de GitHub Actions donde el quality gate bloqueó
-automáticamente un merge por una vulnerabilidad de código real (`B602`)
-que sigue abierta a propósito, con un plan de remediación explícito
-(Sección 8) que distingue qué ya se corrigió (secreto, dependencias) de qué
-queda pendiente y por qué (contención vs. mejora preventiva). Formalizar
+automáticamente un merge por una vulnerabilidad de código real (`B602`),
+y otra corrida posterior donde, una vez aplicada la remediación planeada en
+la Sección 8, el mismo gate pasa en verde. El ciclo completo quedó
+demostrado: detectar, bloquear, remediar y verificar. Formalizar
 Bandit, pip-audit y Gitleaks como controles automáticos previos al merge —
 sobre la misma lógica que ya bloqueaba el flujo `dev` → `production` con
 `gatekeeper.py` — convirtió un principio en una práctica repetible y
