@@ -1,0 +1,10 @@
+[Unit]
+Description=EnerIQ - analitica cada 5 min
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+Unit=eneriq-analytics.service
+
+[Install]
+WantedBy=timers.target

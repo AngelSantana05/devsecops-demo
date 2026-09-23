@@ -72,6 +72,32 @@ def publicar_plan_manana(plan: list[dict]):
     )
 
 
+def publicar_consumo_gasto(consumo_kwh_hoy: float, costo_mxn_hoy: float, periodo: str, precio_kwh_actual: float):
+    _set_state(
+        "sensor.eneriq_consumo_hoy_kwh",
+        consumo_kwh_hoy,
+        {
+            "friendly_name": "EnerIQ - Consumo hoy",
+            "icon": "mdi:lightning-bolt",
+            "unit_of_measurement": "kWh",
+            "device_class": "energy",
+            "state_class": "total_increasing",
+        },
+    )
+    _set_state(
+        "sensor.eneriq_gasto_hoy_mxn",
+        costo_mxn_hoy,
+        {
+            "friendly_name": "EnerIQ - Gasto hoy",
+            "icon": "mdi:cash",
+            "unit_of_measurement": "MXN",
+            "state_class": "total_increasing",
+            "periodo_tarifa_actual": periodo,
+            "precio_kwh_actual_mxn": precio_kwh_actual,
+        },
+    )
+
+
 def llamar_servicio(servicio_ha: str):
     """Llama un servicio de HA sin entity_id -- para scripts autocontenidos
     como 'script.encender_aire' (el script ya sabe que remote/device controlar).
