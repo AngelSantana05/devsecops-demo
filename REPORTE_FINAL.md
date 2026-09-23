@@ -307,9 +307,17 @@ Quality gate OK
 ```
 
 **Resultado:** primera corrida con el quality gate completo en **verde**.
-Queda abierto el hallazgo #3 (B108, ruta temporal predecible, severidad
-media), que no bloquea el gate por diseño (el gate sólo bloquea severidad
-alta) y sigue documentado como deuda menor.
+
+**Remediación de B108 (mismo día):** también se corrigió el hallazgo #3
+(ruta temporal predecible, CWE-377), aunque no bloqueaba el gate. Antes el
+respaldo siempre se escribía en `/tmp/backup.tar.gz`, una ruta que otro
+usuario del sistema podía ocupar antes con un symlink. Ahora, sin destino
+explícito, el archivo se crea con `tempfile.mkstemp` (nombre único,
+permisos 0600, creación atómica) y la carpeta de descargas sale de
+`tempfile.gettempdir()`. Con esto Bandit ya no reporta nada en
+`app-ejemplo/` en **ninguna** severidad; los hallazgos de código #2, #3 y
+#4 (B602, B108 y el B404 informativo, que desapareció al quitar
+`subprocess`) quedan cerrados.
 
 **Nota sobre Gitleaks en CI vs. local:** `gitleaks-action` en un evento
 `push` escanea únicamente los *commits nuevos incluidos en ese push*, no
