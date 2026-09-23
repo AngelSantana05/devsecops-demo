@@ -13,11 +13,17 @@ Correr con: uvicorn main:app --host 0.0.0.0 --port 8091
 from datetime import date
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 import db
 import plan_llm
+import plan_meta
 
 app = FastAPI(title="EnerIQ Gateway")
+
+
+class MetaGastoRequest(BaseModel):
+    meta_gasto_mxn: float
 
 
 @app.get("/health")
@@ -82,6 +88,47 @@ def generar_plan_llm():
         return {"status": "ok"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+
+@app.post("/plan/meta/generar")
+def generar_plan_meta(body: MetaGastoRequest):
+    """Genera el plan de manana orientado a la meta de gasto diario que
+    puso el usuario, con proyeccion de ahorro vs. su uso actual (bajo
+    demanda, boton del dashboard -> rest_command de HA)."""
+    try:
+        plan_meta.main(body.meta_gasto_mxn)
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+@app.get("/goal-plans/recent")
+def metas_recientes(limit: int = 20):
+    conn = db.get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT creado_en, meta_gasto_mxn, uso_actual_mxn, gasto_proyectado_mxn,
+                          ahorro_mxn, ahorro_pct, cumple_meta, plan_texto
+                   FROM goal_plans ORDER BY creado_en DESC LIMIT %s""",
+                (limit,),
+            )
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "creado_en": c.isoformat(),
+            "meta_gasto_mxn": float(meta),
+            "uso_actual_mxn": float(uso),
+            "gasto_proyectado_mxn": float(proy),
+            "ahorro_mxn": float(ahorro),
+            "ahorro_pct": float(pct),
+            "cumple_meta": cumple,
+            "plan_texto": texto,
+        }
+        for c, meta, uso, proy, ahorro, pct, cumple, texto in filas
+    ]
 
 
 @app.get("/telemetry/{device_id}/latest")
