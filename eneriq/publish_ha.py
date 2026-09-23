@@ -98,6 +98,20 @@ def publicar_consumo_gasto(consumo_kwh_hoy: float, costo_mxn_hoy: float, periodo
     )
 
 
+def publicar_plan_llm(plan_texto: str, backend: str, gasto_hoy_mxn: float):
+    _set_state(
+        "sensor.eneriq_plan_llm",
+        "generado",
+        {
+            "friendly_name": "EnerIQ - Plan de mañana (IA)",
+            "icon": "mdi:robot",
+            "plan_texto": plan_texto,
+            "backend": backend,
+            "gasto_hoy_mxn": gasto_hoy_mxn,
+        },
+    )
+
+
 def llamar_servicio(servicio_ha: str):
     """Llama un servicio de HA sin entity_id -- para scripts autocontenidos
     como 'script.encender_aire' (el script ya sabe que remote/device controlar).

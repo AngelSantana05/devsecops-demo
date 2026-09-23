@@ -1,17 +1,21 @@
-"""EnerIQ Gateway -- API de solo lectura sobre las decisiones/telemetria.
+"""EnerIQ Gateway -- API de solo lectura sobre las decisiones/telemetria,
+mas 1 endpoint de accion (/plan/llm/generar).
 
-No se expone a la LAN (solo localhost) -- HA consulta los sensores push
-(ver publish_ha.py), esta API es para depuracion/inspeccion directa y para
-integraciones futuras (ej. un dashboard propio, si algun dia hace falta
-mas que los paneles de HA).
+Expuesta en la red interna de LXCs (10.10.10.0/24, bridge vmbr0) -- NO en
+la LAN de casa, no hay DNAT hacia afuera. HA (10.10.10.10) le pega directo
+sin necesidad de regla de firewall nueva, mismo patron que el gateway de IA
+(ver services/ai-stack.md). Los sensores push (ver publish_ha.py) siguen
+siendo la via normal de consulta; esta API es para depuracion/inspeccion
+directa, integraciones futuras, y el trigger bajo demanda del plan con IA.
 
-Correr con: uvicorn main:app --host 127.0.0.1 --port 8091
+Correr con: uvicorn main:app --host 0.0.0.0 --port 8091
 """
 from datetime import date
 
 from fastapi import FastAPI
 
 import db
+import plan_llm
 
 app = FastAPI(title="EnerIQ Gateway")
 
@@ -64,6 +68,20 @@ def plan_del_dia(fecha: date):
         {"device_id": d, "hora": h, "accion_sugerida": a, "razon": r}
         for d, h, a, r in filas
     ]
+
+
+@app.post("/plan/llm/generar")
+def generar_plan_llm():
+    """Dispara la generacion del plan de manana explicado por el LLM local
+    (bajo demanda, ej. boton del dashboard -> rest_command de HA). Sincrono
+    a proposito -- el modelo local tarda unos segundos, no minutos, y asi
+    el boton puede mostrar de una vez si funciono o no.
+    """
+    try:
+        plan_llm.main()
+        return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 
 @app.get("/telemetry/{device_id}/latest")
