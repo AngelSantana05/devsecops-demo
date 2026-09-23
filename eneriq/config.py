@@ -21,6 +21,14 @@ LONGITUDE = float(os.environ.get("ENERIQ_LON", "-100.3161"))
 # del clima se interpretan en esta zona (el LXC/Postgres tambien la usan).
 TIMEZONE = os.environ.get("ENERIQ_TZ", "America/Monterrey")
 
+# --- Tarifa CFE (ver tariff.py) ---
+# Mes en que arranca el verano de la Tarifa 1C (Nuevo Leon: abril).
+VERANO_MES_INICIO = int(os.environ.get("ENERIQ_VERANO_MES_INICIO", "4"))
+# Promedio mensual de consumo de los ultimos 12 meses (kWh), tal como viene en
+# el historial del recibo de CFE. Sirve para saber que tan cerca esta la casa
+# del limite DAC (850 kWh/mes en 1C). Default: valor de ejemplo para la demo.
+CONSUMO_PROMEDIO_12M_KWH = float(os.environ.get("ENERIQ_CONSUMO_PROMEDIO_12M_KWH", "650"))
+
 # --- Modo demo ---
 # Pronostico inventado de un dia caluroso, por si el clima real no alcanza el
 # umbral de confort. Apagado por default: se usa el pronostico real.
