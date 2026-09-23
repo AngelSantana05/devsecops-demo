@@ -17,6 +17,10 @@ DB_PASSWORD = os.environ.get("ENERIQ_DB_PASSWORD", "")
 LATITUDE = float(os.environ.get("ENERIQ_LAT", "19.4326"))
 LONGITUDE = float(os.environ.get("ENERIQ_LON", "-99.1332"))
 
+# Zona horaria de la casa -- el horario punta de tariff.py y el pronostico
+# del clima se interpretan en esta zona (el LXC/Postgres tambien la usan).
+TIMEZONE = os.environ.get("ENERIQ_TZ", "America/Monterrey")
+
 # Umbral de confort para el motor de decision del AC.
 TEMP_CONFORT_MAX_C = float(os.environ.get("ENERIQ_TEMP_CONFORT_MAX", "26.0"))
 

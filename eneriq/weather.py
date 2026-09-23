@@ -30,6 +30,9 @@ def pronostico_manana_c() -> list[float]:
             "longitude": config.LONGITUDE,
             "hourly": "temperature_2m",
             "forecast_days": 2,
+            # sin esto Open-Meteo regresa horas UTC y el plan queda corrido
+            # respecto al horario punta local
+            "timezone": config.TIMEZONE,
         },
         timeout=10,
     )
