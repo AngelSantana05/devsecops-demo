@@ -120,6 +120,7 @@ def publicar_plan_meta(
     ahorro_pct: float,
     cumple_meta: bool,
     plan_texto: str,
+    detalle_punta: dict | None = None,
 ):
     _set_state(
         "sensor.eneriq_plan_meta",
@@ -138,6 +139,8 @@ def publicar_plan_meta(
             "ahorro_pct": ahorro_pct,
             "cumple_meta": cumple_meta,
             "plan_texto": plan_texto,
+            # gasto en horario punta vs base (actual/proyectado) y cargas desplazadas
+            **(detalle_punta or {}),
         },
     )
 
