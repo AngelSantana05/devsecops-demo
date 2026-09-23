@@ -21,6 +21,14 @@ LONGITUDE = float(os.environ.get("ENERIQ_LON", "-99.1332"))
 # del clima se interpretan en esta zona (el LXC/Postgres tambien la usan).
 TIMEZONE = os.environ.get("ENERIQ_TZ", "America/Monterrey")
 
+# --- Modo demo ---
+# Pronostico inventado de un dia caluroso de Monterrey (el real de septiembre
+# sale frio y el plan nunca prende el aire -> no hay nada que demostrar).
+DEMO_CLIMA = os.environ.get("ENERIQ_DEMO_CLIMA", "1") == "1"
+# Potencia del minisplit para modelar su consumo en el plan con meta de gasto
+# (el enchufe de la fila 'ac' en realidad mide el servidor, ver memoria).
+AC_POTENCIA_W = float(os.environ.get("ENERIQ_AC_POTENCIA_W", "1500"))
+
 # Umbral de confort para el motor de decision del AC.
 TEMP_CONFORT_MAX_C = float(os.environ.get("ENERIQ_TEMP_CONFORT_MAX", "26.0"))
 
