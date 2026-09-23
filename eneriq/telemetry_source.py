@@ -44,8 +44,19 @@ def _simular_consumo_w() -> float:
     return round(base + ruido, 1)
 
 
-def _simular_temp_interior_c(temp_exterior_c: float) -> float:
-    return round(temp_exterior_c - random.uniform(2.0, 5.0), 1)
+def _simular_temp_interior_c() -> float:
+    """Curva de temperatura interior simulada, alrededor de 28C (clima calido
+    tipico de una casa en Nuevo Leon sin AC), mas alta al mediodia/tarde.
+
+    Deliberadamente NO depende del clima exterior real -- si el dia real esta
+    frio/atipico, restarle un offset a esa temperatura deja la interior
+    siempre por debajo del umbral de confort (26C) y el motor de decision
+    nunca sugiere 'encender', lo cual no sirve para demostrar el sistema.
+    """
+    hora = time.localtime().tm_hour
+    base = 26.0 + 4.0 * max(0, math.sin((hora - 6) / 24 * 2 * math.pi))  # ~26-30C
+    ruido = random.uniform(-1.0, 1.0)
+    return round(base + ruido, 1)
 
 
 def leer_telemetria(ha_entity_id: str | None, temp_exterior_c: float) -> dict:
@@ -53,17 +64,21 @@ def leer_telemetria(ha_entity_id: str | None, temp_exterior_c: float) -> dict:
 
     `ha_entity_id` es el sensor de TELEMETRIA (ej. el enchufe inteligente una
     vez conectado) -- no tiene relacion con como se controla el dispositivo.
+    `temp_exterior_c` ya no se usa para la simulacion de temperatura interior
+    (ver `_simular_temp_interior_c`), se deja en la firma por compatibilidad
+    con los llamadores existentes (ingest.py pasa el clima real por si algun
+    dia se usa de nuevo como insumo).
     """
     if ha_entity_id:
         valor = _leer_ha(ha_entity_id)
         if valor is not None:
             return {
                 "consumo_w": valor,
-                "temp_interior_c": _simular_temp_interior_c(temp_exterior_c),
+                "temp_interior_c": _simular_temp_interior_c(),
                 "fuente": "home_assistant",
             }
     return {
         "consumo_w": _simular_consumo_w(),
-        "temp_interior_c": _simular_temp_interior_c(temp_exterior_c),
+        "temp_interior_c": _simular_temp_interior_c(),
         "fuente": "simulada",
     }
