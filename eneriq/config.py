@@ -12,19 +12,19 @@ DB_NAME = os.environ.get("ENERIQ_DB_NAME", "eneriq")
 DB_USER = os.environ.get("ENERIQ_DB_USER", "eneriq_app")
 DB_PASSWORD = os.environ.get("ENERIQ_DB_PASSWORD", "")
 
-# Ubicacion para el pronostico del clima (Open-Meteo, sin API key).
-# Default: Ciudad de Mexico -- ajustar a la ubicacion real de la casa.
-LATITUDE = float(os.environ.get("ENERIQ_LAT", "19.4326"))
-LONGITUDE = float(os.environ.get("ENERIQ_LON", "-99.1332"))
+# Ubicacion de la casa para el pronostico del clima (Open-Meteo, sin API key).
+# Default: Monterrey, N.L.
+LATITUDE = float(os.environ.get("ENERIQ_LAT", "25.6866"))
+LONGITUDE = float(os.environ.get("ENERIQ_LON", "-100.3161"))
 
 # Zona horaria de la casa -- el horario punta de tariff.py y el pronostico
 # del clima se interpretan en esta zona (el LXC/Postgres tambien la usan).
 TIMEZONE = os.environ.get("ENERIQ_TZ", "America/Monterrey")
 
 # --- Modo demo ---
-# Pronostico inventado de un dia caluroso de Monterrey (el real de septiembre
-# sale frio y el plan nunca prende el aire -> no hay nada que demostrar).
-DEMO_CLIMA = os.environ.get("ENERIQ_DEMO_CLIMA", "1") == "1"
+# Pronostico inventado de un dia caluroso, por si el clima real no alcanza el
+# umbral de confort. Apagado por default: se usa el pronostico real.
+DEMO_CLIMA = os.environ.get("ENERIQ_DEMO_CLIMA", "0") == "1"
 # Potencia del minisplit para modelar su consumo en el plan con meta de gasto
 # (el enchufe de la fila 'ac' en realidad mide el servidor, ver memoria).
 AC_POTENCIA_W = float(os.environ.get("ENERIQ_AC_POTENCIA_W", "1500"))
