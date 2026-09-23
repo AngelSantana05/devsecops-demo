@@ -132,20 +132,3 @@ def escalon_actual(kwh_mes_acumulado: float, fecha: date | None = None) -> tuple
 def limite_subsidiado_kwh(fecha: date | None = None) -> float:
     """kWh del mes antes de entrar al escalon excedente."""
     return sum(tam for _, tam, _ in escalones(fecha) if tam is not None)
-
-
-# --- Modelo anterior por horario (punta/base) ---
-# Se conserva mientras el resto del codigo migra a escalones; se retira despues.
-PERIODO_PUNTA = (18, 22)
-PRECIOS_MXN_KWH = {"base": 1.20, "punta": 4.50}
-
-
-def periodo_actual(hora: int | None = None) -> str:
-    from datetime import datetime
-    h = hora if hora is not None else datetime.now().hour
-    inicio, fin = PERIODO_PUNTA
-    return "punta" if inicio <= h < fin else "base"
-
-
-def precio_kwh(hora: int | None = None) -> float:
-    return PRECIOS_MXN_KWH[periodo_actual(hora)]

@@ -49,8 +49,8 @@ def simular_consumo_dispositivo_w(device_id: str, momento: datetime) -> float:
     """Perfil de DEMO por aparato (W), segun la hora local de `momento`.
 
     Inventado a proposito para que la demo tenga habitos realistas de una
-    casa en Monterrey -- incluido consumo en horario punta que el plan con
-    meta de gasto pueda mover. Lo usa tanto la ingesta cada 5 min como
+    casa en Monterrey (lavadora y calentador electrico de tanque, los que mas
+    kWh suman fuera del aire). Lo usa tanto la ingesta cada 5 min como
     demo_backfill.py (historial inventado), asi las dos cuadran.
     """
     h = momento.hour + momento.minute / 60.0
@@ -63,14 +63,14 @@ def simular_consumo_dispositivo_w(device_id: str, momento: datetime) -> float:
         return round(45 + (140 if r() < ciclo else 0) + random.uniform(-5, 5), 1)
 
     if device_id == "lavadora":
-        # lun/mie/sab/dom, al volver del trabajo -> cae justo en horario punta
+        # lun/mie/sab/dom, al volver del trabajo
         if dia in (0, 2, 5, 6) and 19 <= h < 20.5:
             return round(random.uniform(450, 700) if h >= 20 else random.uniform(350, 550), 1)
         return 2.0
 
     if device_id == "calentador":
         # calentador electrico de tanque: regaderas en la manana y recuperacion
-        # en la noche (horario punta); fuera de eso solo mantiene temperatura
+        # en la noche; fuera de eso solo mantiene temperatura
         if 6 <= h < 7.5 or 19 <= h < 21:
             return round(random.uniform(1400, 1550), 1)
         return round(1500.0 if r() < 0.04 else 3.0, 1)
