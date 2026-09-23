@@ -31,7 +31,7 @@ def main():
 
     with conn.cursor() as cur:
         for device_id, ha_entity_id in dispositivos:
-            lectura = telemetry_source.leer_telemetria(ha_entity_id, temp_exterior)
+            lectura = telemetry_source.leer_telemetria(ha_entity_id, temp_exterior, device_id)
             cur.execute(
                 """INSERT INTO telemetry (tiempo, device_id, consumo_w, temp_interior_c, fuente)
                    VALUES (%s, %s, %s, %s, %s)""",

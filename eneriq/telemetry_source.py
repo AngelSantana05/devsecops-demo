@@ -13,6 +13,7 @@ en la base de datos:
 import math
 import random
 import time
+from datetime import datetime
 
 import requests
 
@@ -44,6 +45,46 @@ def _simular_consumo_w() -> float:
     return round(base + ruido, 1)
 
 
+def simular_consumo_dispositivo_w(device_id: str, momento: datetime) -> float:
+    """Perfil de DEMO por aparato (W), segun la hora local de `momento`.
+
+    Inventado a proposito para que la demo tenga habitos realistas de una
+    casa en Monterrey -- incluido consumo en horario punta que el plan con
+    meta de gasto pueda mover. Lo usa tanto la ingesta cada 5 min como
+    demo_backfill.py (historial inventado), asi las dos cuadran.
+    """
+    h = momento.hour + momento.minute / 60.0
+    dia = momento.weekday()  # 0 = lunes
+    r = random.random
+
+    if device_id == "refrigerador":
+        # compresor ciclando; trabaja mas en la tarde (cocina caliente)
+        ciclo = 0.35 + (0.15 if 13 <= h < 20 else 0.0)
+        return round(45 + (140 if r() < ciclo else 0) + random.uniform(-5, 5), 1)
+
+    if device_id == "lavadora":
+        # lun/mie/sab/dom, al volver del trabajo -> cae justo en horario punta
+        if dia in (0, 2, 5, 6) and 19 <= h < 20.5:
+            return round(random.uniform(450, 700) if h >= 20 else random.uniform(350, 550), 1)
+        return 2.0
+
+    if device_id == "calentador":
+        # calentador electrico de tanque: regaderas en la manana y recuperacion
+        # en la noche (horario punta); fuera de eso solo mantiene temperatura
+        if 6 <= h < 7.5 or 19 <= h < 21:
+            return round(random.uniform(1400, 1550), 1)
+        return round(1500.0 if r() < 0.04 else 3.0, 1)
+
+    if device_id == "luces":
+        if 18.5 <= h < 23.5:
+            return round(random.uniform(170, 260), 1)
+        if 6 <= h < 7.5:
+            return round(random.uniform(80, 120), 1)
+        return round(random.uniform(10, 20), 1)
+
+    return _simular_consumo_w()
+
+
 def _simular_temp_interior_c() -> float:
     """Curva de temperatura interior simulada, alrededor de 28C (clima calido
     tipico de una casa en Nuevo Leon sin AC), mas alta al mediodia/tarde.
@@ -59,7 +100,7 @@ def _simular_temp_interior_c() -> float:
     return round(base + ruido, 1)
 
 
-def leer_telemetria(ha_entity_id: str | None, temp_exterior_c: float) -> dict:
+def leer_telemetria(ha_entity_id: str | None, temp_exterior_c: float, device_id: str | None = None) -> dict:
     """Regresa {'consumo_w', 'temp_interior_c', 'fuente'} para un dispositivo.
 
     `ha_entity_id` es el sensor de TELEMETRIA (ej. el enchufe inteligente una
@@ -78,7 +119,7 @@ def leer_telemetria(ha_entity_id: str | None, temp_exterior_c: float) -> dict:
                 "fuente": "home_assistant",
             }
     return {
-        "consumo_w": _simular_consumo_w(),
+        "consumo_w": simular_consumo_dispositivo_w(device_id, datetime.now()) if device_id else _simular_consumo_w(),
         "temp_interior_c": _simular_temp_interior_c(),
         "fuente": "simulada",
     }
