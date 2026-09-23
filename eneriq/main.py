@@ -10,9 +10,10 @@ directa, integraciones futuras, y el trigger bajo demanda del plan con IA.
 
 Correr con: uvicorn main:app --host 0.0.0.0 --port 8091
 """
+import traceback
 from datetime import date
 
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, FastAPI
 from pydantic import BaseModel
 
 import db
@@ -90,11 +91,26 @@ def generar_plan_llm():
         return {"status": "error", "detail": str(e)}
 
 
+def _correr_plan_meta(meta_gasto_mxn: float):
+    try:
+        plan_meta.main(meta_gasto_mxn)
+    except Exception:
+        traceback.print_exc()
+
+
 @app.post("/plan/meta/generar")
-def generar_plan_meta(body: MetaGastoRequest):
+def generar_plan_meta(body: MetaGastoRequest, background: BackgroundTasks, esperar: bool = False):
     """Genera el plan de manana orientado a la meta de gasto diario que
     puso el usuario, con proyeccion de ahorro vs. su uso actual (bajo
-    demanda, boton del dashboard -> rest_command de HA)."""
+    demanda, boton del dashboard -> rest_command de HA).
+
+    El LLM tarda ~15-20s con el prompt completo y el rest_command de HA
+    corta a los 10s, asi que por default responde de inmediato y genera en
+    segundo plano (errores al journal del gateway). `?esperar=true` para
+    probar a mano y ver el resultado/error en la respuesta."""
+    if not esperar:
+        background.add_task(_correr_plan_meta, body.meta_gasto_mxn)
+        return {"status": "generando"}
     try:
         plan_meta.main(body.meta_gasto_mxn)
         return {"status": "ok"}
