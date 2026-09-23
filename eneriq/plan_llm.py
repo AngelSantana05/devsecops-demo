@@ -4,7 +4,7 @@ del skill homelab-implement).
 
 No le pide al modelo que DECIDA nada -- el motor de reglas
 (decision_engine.scheduler) ya genero el plan hora por hora con datos duros
-(clima, tarifa, umbral de confort). El LLM solo lo explica en espanol
+(clima, escalon de la tarifa CFE, umbral de confort). El LLM solo lo explica en espanol
 llano, siguiendo la misma filosofia del resto del homelab: el LLM local es
 para contexto/explicaciones, no para tomar decisiones.
 
@@ -24,6 +24,7 @@ main.py), no por timer.
 import sys
 from datetime import date, timedelta
 
+import analytics
 import config
 import db
 import publish_ha
@@ -45,43 +46,51 @@ def plan_de_manana(cur) -> list[dict]:
     return [{"hora": h, "accion_sugerida": a, "razon": r} for h, a, r in filas]
 
 
-def gasto_hoy(cur) -> float:
-    cur.execute(
-        """SELECT sum(consumo_w) FROM telemetry
-           WHERE tiempo >= date_trunc('day', now()) GROUP BY tiempo"""
-    )
-    filas = cur.fetchall()
-    if not filas:
-        return 0.0
-    kwh_por_corte = 5.0 / 60.0 / 1000.0
-    return round(sum((w or 0.0) * kwh_por_corte * tariff.precio_kwh() for (w,) in filas), 2)
+def contexto_tarifa(cur) -> dict:
+    """Consumo del mes y escalon de la tarifa CFE en el que cae."""
+    c = analytics.consumo_mes(cur)
+    hoy = date.today()
+    escalon, precio = tariff.escalon_actual(c["kwh_mes"], hoy)
+    return {
+        "kwh_mes": round(c["kwh_mes"], 1),
+        "kwh_mes_proyectado": round(c["kwh_mes_proyectado"], 1),
+        "limite_subsidiado": tariff.limite_subsidiado_kwh(hoy),
+        "escalon": escalon,
+        "precio": precio,
+        "gasto_hoy": round(tariff.costo_incremental(c["kwh_previo"], c["kwh_hoy"], hoy), 2),
+        "temporada": tariff.temporada(hoy),
+    }
 
 
-def construir_prompt(plan: list[dict]) -> str:
-    inicio_punta, fin_punta = tariff.PERIODO_PUNTA
+def construir_prompt(plan: list[dict], t: dict) -> str:
     horas_encender = [p["hora"] for p in plan if p["accion_sugerida"] == "encender"]
     resumen_plan = "\n".join(
         f"- {p['hora']:02d}:00 -> {p['accion_sugerida']} ({p['razon']})"
         for p in plan
     ) or "(el plan de manana todavia no se genero -- avisa que falta correr el scheduling)"
+    faltan = max(t["limite_subsidiado"] - t["kwh_mes"], 0)
 
-    return f"""Sos el asistente de EnerIQ, un orquestador de energia domestica.
+    return f"""Eres el asistente de EnerIQ, un orquestador de energia domestica en Monterrey.
 Ya existe un plan calculado por reglas para manana, hora por hora (no lo
 inventes, no cambies los numeros, solo explicalo):
 
 {resumen_plan}
 
 Datos de contexto:
+- Tarifa CFE 1C (Monterrey), temporada {t['temporada']}. CFE cobra por escalones de
+  consumo del mes, NO por hora: la hora del dia no cambia el precio.
+- Consumo del mes hasta hoy: {t['kwh_mes']} kWh; a este ritmo cierra el mes en {t['kwh_mes_proyectado']} kWh.
+- Los primeros {t['limite_subsidiado']:.0f} kWh del mes estan subsidiados; despues todo es escalon excedente.
+- Escalon actual: {t['escalon']}, cada kWh extra cuesta ${t['precio']} con IVA
+  (faltan {faltan:.0f} kWh para llegar al excedente).
 - Umbral de confort configurado: {config.TEMP_CONFORT_MAX_C}C
-- Horario tarifa punta (mas cara): {inicio_punta}:00-{fin_punta}:00, ${tariff.PRECIOS_MXN_KWH['punta']}/kWh
-- Resto del dia (tarifa base): ${tariff.PRECIOS_MXN_KWH['base']}/kWh
 - Horas en las que el plan sugiere encender el aire: {horas_encender if horas_encender else 'ninguna'}
 
 Escribe en espanol, en 4-6 lineas, un plan practico y breve para manana
-explicando COMO llegar y mantenerse cerca del umbral de confort de forma
-economica (aprovechando horario base, evitando punta cuando se pueda).
-Tono directo, como si le hablaras al dueno de la casa. No uses markdown,
-no repitas la tabla completa, resume lo importante."""
+explicando como mantenerse cerca del umbral de confort gastando la menor
+cantidad de kWh posible. No hables de horario punta ni de mover aparatos de
+hora (en esta tarifa no ahorra). Tono directo, como si le hablaras al dueno
+de la casa. No uses markdown, no repitas la tabla completa, resume lo importante."""
 
 
 def main():
@@ -89,9 +98,9 @@ def main():
     try:
         with conn.cursor() as cur:
             plan = plan_de_manana(cur)
-            gasto = gasto_hoy(cur)
+            t = contexto_tarifa(cur)
 
-        prompt = construir_prompt(plan)
+        prompt = construir_prompt(plan, t)
         resp = requests.post(
             OLLAMA_URL,
             json={
@@ -105,7 +114,7 @@ def main():
         data = resp.json()
         plan_texto = data["message"]["content"].strip()
 
-        publish_ha.publicar_plan_llm(plan_texto, OLLAMA_MODEL, gasto)
+        publish_ha.publicar_plan_llm(plan_texto, OLLAMA_MODEL, t["gasto_hoy"])
         print(f"plan_llm: generado via {OLLAMA_MODEL} ({len(plan_texto)} caracteres)")
     finally:
         conn.close()

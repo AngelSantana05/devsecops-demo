@@ -13,12 +13,13 @@ DB_USER = os.environ.get("ENERIQ_DB_USER", "eneriq_app")
 DB_PASSWORD = os.environ.get("ENERIQ_DB_PASSWORD", "")
 
 # Ubicacion de la casa para el pronostico del clima (Open-Meteo, sin API key).
-# Default: Monterrey, N.L.
+# Default: Monterrey, N.L. (misma localidad que define la Tarifa 1C de tariff.py).
 LATITUDE = float(os.environ.get("ENERIQ_LAT", "25.6866"))
 LONGITUDE = float(os.environ.get("ENERIQ_LON", "-100.3161"))
 
-# Zona horaria de la casa -- el horario punta de tariff.py y el pronostico
-# del clima se interpretan en esta zona (el LXC/Postgres tambien la usan).
+# Zona horaria de la casa -- el corte de dia/mes del consumo (escalones de
+# tariff.py) y el pronostico del clima se interpretan en esta zona (el
+# LXC/Postgres tambien la usan).
 TIMEZONE = os.environ.get("ENERIQ_TZ", "America/Monterrey")
 
 # --- Tarifa CFE (ver tariff.py) ---

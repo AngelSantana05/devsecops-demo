@@ -6,6 +6,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 
+import analytics
 import config
 import db
 import publish_ha
@@ -49,6 +50,7 @@ def main():
                FROM devices WHERE tipo = 'ac'"""
         )
         dispositivos_ac = cur.fetchall()
+        kwh_mes = analytics.consumo_mes(cur)["kwh_mes"]
 
         anomalias = []
         for device_id, ha_entity_id, control_on, control_off, auto_control in dispositivos_ac:
@@ -57,15 +59,16 @@ def main():
                 continue
             _, consumo_w, temp_interior_c = lectura
 
-            periodo = tariff.periodo_actual()
-            precio = tariff.precio_kwh()
+            escalon, precio = tariff.escalon_actual(kwh_mes)
 
             accion, razon = decidir_ac(
-                temp_interior_c, config.TEMP_CONFORT_MAX_C, periodo, precio
+                temp_interior_c, config.TEMP_CONFORT_MAX_C, escalon, precio
             )
             evidencia = {
                 "temp_interior_c": temp_interior_c,
-                "periodo_tarifa": periodo,
+                "periodo_tarifa": f"{tariff.temporada()}, escalon {escalon}",
+                "escalon_tarifa": escalon,
+                "consumo_mes_kwh": round(kwh_mes, 1),
                 "precio_kwh_mxn": precio,
                 "umbral_confort_c": config.TEMP_CONFORT_MAX_C,
             }
